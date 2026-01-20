@@ -1,26 +1,185 @@
 @import "tailwindcss";
 
+/* ==========================================
+   CSS CUSTOM PROPERTIES (Variables)
+   ==========================================
+   
+   CSS variables let us define values once and reuse them everywhere.
+   Syntax: --variable-name: value;
+   Usage: var(--variable-name)
+   
+   Benefits:
+   - Change a color in one place, updates everywhere
+   - Easy to create themes (dark/light mode)
+   - JavaScript can read/write these values
+*/
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 
+   * Main colors - Dark theme
+   * We're using a dark theme because:
+   * 1. Easier on the eyes for screen recording
+   * 2. Modern, minimal aesthetic
+   * 3. Recording UI won't distract from content
+   */
+  --background: #09090b;      /* Almost black - main background */
+  --foreground: #fafafa;      /* Almost white - main text */
+  
+  /* Muted colors - for secondary/less important elements */
+  --muted: #27272a;           /* Dark gray - secondary backgrounds */
+  --muted-foreground: #a1a1aa;/* Medium gray - secondary text */
+  
+  /* Accent color - draws attention to important actions */
+  --accent: #3b82f6;          /* Blue - buttons, links, highlights */
+  --accent-hover: #2563eb;    /* Darker blue - hover state */
+  
+  /* Destructive - for dangerous actions (delete, discard) */
+  --destructive: #ef4444;     /* Red - warning/danger */
+  --destructive-hover: #dc2626;
+  
+  /* Success - for positive actions */
+  --success: #22c55e;         /* Green - success states */
+  
+  /* Card - elevated surfaces */
+  --card: #18181b;            /* Slightly lighter than background */
+  --card-foreground: #fafafa;
+  
+  /* Border */
+  --border: #27272a;          /* Subtle borders */
+  
+  /* Recording indicator */
+  --recording: #ef4444;       /* Red dot when recording */
+  
+  /* Border radius */
+  --radius: 0.75rem;          /* 12px - rounded corners */
 }
+
+/* ==========================================
+   Tailwind Theme Integration
+   ==========================================
+   
+   This tells Tailwind CSS about our custom colors
+   so we can use them like: bg-background, text-accent, etc.
+*/
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-success: var(--success);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-recording: var(--recording);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ==========================================
+   Base Styles
+   ========================================== */
+
+* {
+  /* All borders use our border color by default */
+  border-color: var(--border);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* ==========================================
+   Custom Animations
+   ==========================================
+   
+   @keyframes defines the steps of an animation
+   We name it and then use it with 'animation' property
+*/
+
+/* Recording indicator pulse - red dot that fades in/out */
+@keyframes pulse-recording {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Countdown number animation - pops in from small to large */
+@keyframes countdown-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Slide up animation */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================
+   Utility Classes
+   ==========================================
+   
+   Custom utility classes we can use anywhere
+*/
+
+/* Apply pulse animation to recording indicator */
+.animate-pulse-recording {
+  animation: pulse-recording 1.5s ease-in-out infinite;
+}
+
+/* Apply countdown animation */
+.animate-countdown {
+  animation: countdown-pop 0.4s ease-out forwards;
+}
+
+/* Apply fade in */
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+/* Apply slide up */
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out forwards;
+}
+
+/* Glass effect - frosted glass look for overlays */
+.glass {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px); /* Safari support */
 }
