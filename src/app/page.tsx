@@ -182,6 +182,26 @@ export default function Home() {
     }
   }, [cameraStream, isRecordingActive, isCompositing, updateCameraStream]);
 
+  // Sync audio source with microphone state (only before recording)
+  useEffect(() => {
+    if (!isRecordingActive) {
+      if (isMicrophoneOn) {
+        // If mic is on and audio source is 'none', switch to 'microphone'
+        if (audioSource === 'none') {
+          setAudioSource('microphone');
+        }
+      } else {
+        // If mic is off and audio source uses mic, switch appropriately
+        if (audioSource === 'microphone') {
+          setAudioSource('none');
+        } else if (audioSource === 'both') {
+          // If both was selected but mic turned off, switch to system only
+          setAudioSource(hasSystemAudio ? 'system' : 'none');
+        }
+      }
+    }
+  }, [isMicrophoneOn, isRecordingActive, audioSource, hasSystemAudio]);
+
   // ============================================
   // HANDLERS
   // ============================================
@@ -408,8 +428,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Camera & Mic Toggles */}
-        {isSharing && recordingState !== 'stopped' && (
+        {/* Camera & Mic Toggles - Only show before recording */}
+        {isSharing && !isRecordingActive && (
           <div className="mb-4 flex flex-wrap justify-center gap-3">
             <CameraToggle
               isOn={isCameraOn}
@@ -560,11 +580,11 @@ export default function Home() {
                 {isCameraOn && ' • Camera'}
                 {audioSource !== 'none' && ` • Audio: ${getAudioStatusText()}`}
               </p>
-              {!isCameraOn && audioSource === 'none' && (
+              {/* {!isCameraOn && audioSource === 'none' && (
                 <p className="text-xs text-muted-foreground/70">
                   💡 Enable camera or audio to enhance your recording
                 </p>
-              )}
+              )} */}
               <p className="text-xs text-muted-foreground/70">
                 💡 Press <kbd className="px-1.5 py-0.5 bg-muted text-foreground rounded text-xs">Ctrl+Shift+R</kbd> to start recording
               </p>
