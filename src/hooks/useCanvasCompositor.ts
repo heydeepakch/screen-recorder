@@ -14,32 +14,23 @@ interface CompositorConfig {
 const DEFAULT_CONFIG: CompositorConfig = {
   fps: 30,
   cameraPosition: 'bottom-left',
-  cameraSizeRatio: 0.25,  
-  cameraBorderRadius: 50, 
+  cameraSizeRatio: 0.25,
+  cameraBorderRadius: 50,
   padding: 20,
 };
 
 export function useCanvasCompositor() {
-  
-  
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
-  
   const screenVideoRef = useRef<HTMLVideoElement | null>(null);
   const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
-  
   const animationFrameRef = useRef<number | null>(null);
-  
   const outputStreamRef = useRef<MediaStream | null>(null);
-  
   const configRef = useRef<CompositorConfig>(DEFAULT_CONFIG);
 
-  
   const [isCompositing, setIsCompositing] = useState(false);
   const [outputStream, setOutputStream] = useState<MediaStream | null>(null);
 
-  
   const initializeElements = useCallback(() => {
     if (!canvasRef.current) {
       const canvas = document.createElement('canvas');
@@ -122,7 +113,6 @@ export function useCanvasCompositor() {
       const borderRadiusPixels = (config.cameraBorderRadius / 100) * (size / 2);
       
       ctx.save();
-      
       ctx.beginPath();
       
       if (config.cameraBorderRadius >= 50) {
@@ -137,12 +127,9 @@ export function useCanvasCompositor() {
       }
       
       ctx.clip();
-      
-      
       ctx.translate(x + size, y);
       ctx.scale(-1, 1);
       ctx.drawImage(cameraVideo, 0, 0, size, size);
-      
       ctx.restore();
       
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
@@ -152,7 +139,7 @@ export function useCanvasCompositor() {
       if (config.cameraBorderRadius >= 50) {
         const centerX = x + size / 2;
         const centerY = y + size / 2;
-        const radius = size / 2 - 1.5; 
+        const radius = size / 2 - 1.5;
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
       } else if (config.cameraBorderRadius > 0) {
         ctx.roundRect(x, y, size, size, borderRadiusPixels);
@@ -166,9 +153,18 @@ export function useCanvasCompositor() {
     animationFrameRef.current = requestAnimationFrame(drawFrame);
   }, [calculateCameraRect]);
 
+  /**
+   * Start compositing - NOW WITH AUDIO SUPPORT
+   * 
+   * @param screenStream - Screen capture stream
+   * @param cameraStream - Camera stream (optional)
+   * @param audioStream - Mixed audio stream (optional)
+   * @param config - Compositor configuration
+   */
   const startCompositing = useCallback((
     screenStream: MediaStream,
     cameraStream: MediaStream | null,
+    audioStream: MediaStream | null,
     config: Partial<CompositorConfig> = {}
   ): MediaStream | null => {
     initializeElements();
@@ -201,7 +197,28 @@ export function useCanvasCompositor() {
     screenVideo.onloadedmetadata = () => {
       drawFrame();
       
-      const combinedStream = canvas.captureStream(configRef.current.fps);
+      // Capture canvas as video-only stream
+      const canvasStream = canvas.captureStream(configRef.current.fps);
+      
+      /**
+       * Combine video + audio into final stream
+       * 
+       * MediaStream can contain multiple tracks.
+       * We add the video track from canvas and audio track separately.
+       */
+      const combinedStream = new MediaStream();
+      
+      // Add video track from canvas
+      canvasStream.getVideoTracks().forEach(track => {
+        combinedStream.addTrack(track);
+      });
+      
+      // Add audio tracks if available
+      if (audioStream) {
+        audioStream.getAudioTracks().forEach(track => {
+          combinedStream.addTrack(track);
+        });
+      }
       
       outputStreamRef.current = combinedStream;
       setOutputStream(combinedStream);
