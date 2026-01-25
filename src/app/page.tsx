@@ -354,8 +354,8 @@ export default function Home() {
 
             {recordingState === 'recording' && (
               <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
-                <span className="w-3 h-3 bg-recording rounded-full animate-pulse-recording" />
-                <span className="text-white text-sm font-medium">
+                <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse-recording" />
+                <span className="text-red-500 text-sm font-medium">
                   REC {formatTime(duration)}
                 </span>
               </div>
@@ -442,7 +442,7 @@ export default function Home() {
                 onClick={toggleMicrophone}
                 disabled={isMicLoading}
                 className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
+                  flex items-center gap-2 px-4 py-2 rounded-3xl font-medium transition-all
                   ${isMicrophoneOn
                     ? 'bg-accent text-black hover:bg-accent-hover'
                     : 'bg-muted text-foreground hover:bg-muted/80'
@@ -503,7 +503,7 @@ export default function Home() {
             <Tooltip content="Start sharing your screen">
               <button
                 onClick={handleStartSharing}
-                className="px-6 py-3 bg-accent hover:bg-accent-hover text-black font-medium rounded-lg transition-colors"
+                className="px-6 py-3 bg-accent hover:bg-accent-hover text-black font-medium rounded-3xl transition-colors"
               >
                 Share Screen
               </button>
@@ -515,7 +515,7 @@ export default function Home() {
               <Tooltip content="Start recording (Ctrl+Shift+R)">
                 <button
                   onClick={handleStartRecording}
-                  className="px-6 py-3 bg-recording hover:bg-muted-foreground text-black font-medium rounded-lg transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-recording hover:bg-muted-foreground text-black font-medium rounded-3xl transition-colors flex items-center gap-2"
                 >
                   <span className="w-3 h-3 bg-black rounded-full" />
                   Start Recording
@@ -524,7 +524,7 @@ export default function Home() {
               <Tooltip content="Stop sharing (Esc)">
                 <button
                   onClick={handleStopSharing}
-                  className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
+                  className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-3xl transition-colors"
                 >
                   Stop Sharing
                 </button>

@@ -18,7 +18,7 @@ export function CameraToggle({ isOn, isLoading, onToggle, className = '' }: Came
             onClick={onToggle}
             disabled={isLoading}
             className={`
-        flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
+        flex items-center gap-2 px-4 py-2 rounded-3xl font-medium transition-all
         ${isOn
                     ? 'bg-accent text-black hover:bg-accent-hover'
                     : 'bg-muted text-foreground hover:bg-muted/80'
