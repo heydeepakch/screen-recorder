@@ -82,55 +82,156 @@ export function useRecorder() {
     try {
       setError(null);
       
-     
+      // Check if MediaRecorder is supported
+      if (typeof MediaRecorder === 'undefined') {
+        setError('MediaRecorder is not supported in this browser. Please use a modern browser.');
+        setRecordingState('idle');
+        return;
+      }
+      
+      // Check if stream has tracks
+      if (!stream.getTracks().length) {
+        setError('No tracks available in the stream to record.');
+        setRecordingState('idle');
+        return;
+      }
+      
+      // Clear previous recording data
       chunksRef.current = [];
       setRecordedBlob(null);
       
-     
+      // Get the best supported MIME type
       const mimeType = getSupportedMimeType();
-     
-      const recorder = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond: videoBitrate * 1_000_000,
-      });
       
-     
+      // Check if MIME type is supported
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        setError(`Video format ${mimeType} is not supported in this browser.`);
+        setRecordingState('idle');
+        return;
+      }
+      
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, {
+          mimeType,
+          videoBitsPerSecond: videoBitrate * 1_000_000,
+        });
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.name === 'NotSupportedError') {
+            setError('Recording with these settings is not supported. Try adjusting quality or FPS.');
+          } else {
+            setError(`Failed to create MediaRecorder: ${err.message}`);
+          }
+        } else {
+          setError('Failed to create MediaRecorder.');
+        }
+        setRecordingState('idle');
+        return;
+      }
+      
+      // Handle data available
       recorder.ondataavailable = (event) => {
-        // Only save if there's actual data
-        if (event.data && event.data.size > 0) {
-          chunksRef.current.push(event.data);
+        try {
+          // Only save if there's actual data
+          if (event.data && event.data.size > 0) {
+            chunksRef.current.push(event.data);
+          }
+        } catch (err) {
+          console.error('Error handling recording data:', err);
+          setError('Error saving recording data. Recording may be incomplete.');
         }
       };
       
-      
+      // Handle recording stop
       recorder.onstop = () => {
-        // Combine all chunks into a single Blob
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        setRecordedBlob(blob);
-        setRecordingState('stopped');
-        stopTimer();
+        try {
+          // Check if we have any chunks
+          if (chunksRef.current.length === 0) {
+            setError('No recording data was captured. The recording may have failed.');
+            setRecordingState('idle');
+            stopTimer();
+            return;
+          }
+          
+          // Combine all chunks into a single Blob
+          const blob = new Blob(chunksRef.current, { type: mimeType });
+          
+          // Check if blob is valid
+          if (blob.size === 0) {
+            setError('Recording produced an empty file.');
+            setRecordingState('idle');
+            stopTimer();
+            return;
+          }
+          
+          setRecordedBlob(blob);
+          setRecordingState('stopped');
+          stopTimer();
+        } catch (err) {
+          console.error('Error processing recording:', err);
+          setError('Error processing the recording. Please try again.');
+          setRecordingState('idle');
+          stopTimer();
+        }
       };
       
-     
+      // Handle recording errors
       recorder.onerror = (event) => {
-        setError('Recording error occurred');
+        // MediaRecorder error event
+        const errorMessage = 'Recording error occurred. Please try again.';
+        setError(errorMessage);
         setRecordingState('idle');
         stopTimer();
+        console.error('MediaRecorder error:', event);
       };
       
-     
+      // Handle stream track ending unexpectedly
+      stream.getTracks().forEach(track => {
+        track.onended = () => {
+          if (recorder.state === 'recording' || recorder.state === 'paused') {
+            setError('Recording source was disconnected. Recording stopped.');
+            try {
+              recorder.stop();
+            } catch (err) {
+              console.error('Error stopping recorder after track ended:', err);
+            }
+          }
+        };
+      });
+      
       mediaRecorderRef.current = recorder;
-     
-      recorder.start(1000);
+      
+      // Start recording with error handling
+      try {
+        recorder.start(1000); // Fire ondataavailable every 1 second
+      } catch (err) {
+        if (err instanceof Error) {
+          if (err.name === 'InvalidStateError') {
+            setError('Cannot start recording. The recorder is in an invalid state.');
+          } else {
+            setError(`Failed to start recording: ${err.message}`);
+          }
+        } else {
+          setError('Failed to start recording.');
+        }
+        setRecordingState('idle');
+        return;
+      }
       
       setRecordingState('recording');
       startTimer();
       
     } catch (err) {
+      let errorMessage = 'An unexpected error occurred while starting the recording.';
+      
       if (err instanceof Error) {
-        setError(err.message);
+        errorMessage = err.message || errorMessage;
       }
+      
+      setError(errorMessage);
       setRecordingState('idle');
+      stopTimer();
     }
   }, []);
 
@@ -138,9 +239,16 @@ export function useRecorder() {
     const recorder = mediaRecorderRef.current;
     
     if (recorder && recorder.state === 'recording') {
-      recorder.pause();
-      setRecordingState('paused');
-      pauseTimer();
+      try {
+        recorder.pause();
+        setRecordingState('paused');
+        pauseTimer();
+      } catch (err) {
+        const errorMessage = err instanceof Error 
+          ? `Failed to pause recording: ${err.message}`
+          : 'Failed to pause recording.';
+        setError(errorMessage);
+      }
     }
   }, []);
 
@@ -148,9 +256,22 @@ export function useRecorder() {
     const recorder = mediaRecorderRef.current;
     
     if (recorder && recorder.state === 'paused') {
-      recorder.resume();
-      setRecordingState('recording');
-      resumeTimer();
+      try {
+        recorder.resume();
+        setRecordingState('recording');
+        resumeTimer();
+      } catch (err) {
+        const errorMessage = err instanceof Error 
+          ? `Failed to resume recording: ${err.message}`
+          : 'Failed to resume recording.';
+        setError(errorMessage);
+        // If resume fails, stop recording
+        try {
+          recorder.stop();
+        } catch (stopErr) {
+          console.error('Error stopping recorder after resume failure:', stopErr);
+        }
+      }
     }
   }, []);
 
@@ -158,10 +279,23 @@ export function useRecorder() {
     const recorder = mediaRecorderRef.current;
     
     if (recorder && recorder.state !== 'inactive') {
-     
-      recorder.stop();
-    
+      try {
+        recorder.stop();
+      } catch (err) {
+        const errorMessage = err instanceof Error 
+          ? `Failed to stop recording: ${err.message}`
+          : 'Failed to stop recording.';
+        setError(errorMessage);
+        // Force state to stopped even if stop() failed
+        setRecordingState('stopped');
+        stopTimer();
+      }
     }
+  }, []);
+  
+  // Clear error function
+  const clearError = useCallback(() => {
+    setError(null);
   }, []);
 
   
@@ -182,9 +316,10 @@ export function useRecorder() {
     duration,          
     error,             
     startRecording,    
-    pauseRecording,    
+    pauseRecording,   
     resumeRecording,   
     stopRecording,     
-    discardRecording,  
+    discardRecording,
+    clearError,
   };
 }

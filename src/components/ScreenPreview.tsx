@@ -1,35 +1,54 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ScreenPreviewProps {
-  
   stream: MediaStream | null;
 }
 
 export function ScreenPreview({ stream }: ScreenPreviewProps) {
-  
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [aspectRatio, setAspectRatio] = useState<number | null>(null);
 
   useEffect(() => {
     const video = videoRef.current;
-    
+
     if (video && stream) {
-      
       video.srcObject = stream;
-    }
-   
-    return () => {
-      if (video) {
-        video.srcObject = null;
+
+      // Update aspect ratio when video metadata loads
+      const handleLoadedMetadata = () => {
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          setAspectRatio(video.videoWidth / video.videoHeight);
+        }
+      };
+
+      video.addEventListener('loadedmetadata', handleLoadedMetadata);
+
+      // If already loaded
+      if (video.readyState >= 1) {
+        handleLoadedMetadata();
       }
-    };
-  }, [stream]); 
+
+      return () => {
+        video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        if (video) {
+          video.srcObject = null;
+        }
+      };
+    } else {
+      setAspectRatio(null);
+    }
+  }, [stream]);
 
   return (
-    <div className="relative w-full aspect-video bg-muted rounded-lg overflow-hidden">
+    <div
+      className="relative w-full max-h-[400px] rounded-lg overflow-hidden bg-background"
+      style={{
+        aspectRatio: aspectRatio ? `${aspectRatio}` : '16/9',
+      }}
+    >
       {stream ? (
-       
         <video
           ref={videoRef}
           autoPlay
@@ -38,10 +57,9 @@ export function ScreenPreview({ stream }: ScreenPreviewProps) {
           className="w-full h-full object-contain"
         />
       ) : (
-       
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground">
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground bg-muted rounded-lg">
           <svg
-            className="w-16 h-16 mb-4 opacity-50"
+            className="w-12 h-12 mb-3 opacity-50"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"

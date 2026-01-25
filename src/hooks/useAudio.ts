@@ -29,15 +29,30 @@ export function useAudio() {
   const systemSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const getAudioContext = useCallback(() => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new AudioContext();
+    try {
+      if (!audioContextRef.current) {
+        // Check if AudioContext is supported
+        if (typeof AudioContext === 'undefined' && typeof (window as any).webkitAudioContext === 'undefined') {
+          throw new Error('Web Audio API is not supported in this browser.');
+        }
+        
+        audioContextRef.current = new (AudioContext || (window as any).webkitAudioContext)();
+      }
+      
+      // Resume if suspended (browsers require user interaction to start audio)
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch((err) => {
+          console.warn('Failed to resume AudioContext:', err);
+          setError('Audio context could not be started. Please interact with the page first.');
+        });
+      }
+      
+      return audioContextRef.current;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create audio context.';
+      setError(errorMessage);
+      throw err;
     }
-    
-    if (audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
-    
-    return audioContextRef.current;
   }, []);
 
   // ============================================
@@ -49,6 +64,11 @@ export function useAudio() {
       setIsLoading(true);
       setError(null);
       
+      // Check if browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError('Microphone access is not supported in this browser.');
+        return null;
+      }
       
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -57,6 +77,19 @@ export function useAudio() {
           autoGainControl: true,
         },
       });
+      
+      // Check if stream has audio tracks
+      if (!stream.getAudioTracks().length) {
+        setError('No audio track available from microphone.');
+        stream.getTracks().forEach(track => track.stop());
+        return null;
+      }
+      
+      // Handle track ending (which can indicate errors)
+      stream.getAudioTracks()[0].onended = () => {
+        setError('Microphone was disconnected.');
+        stopMicrophone();
+      };
       
       setAudioState(prev => ({
         ...prev,
@@ -67,15 +100,40 @@ export function useAudio() {
       return stream;
       
     } catch (err) {
+      let errorMessage = 'Failed to access microphone.';
+      
       if (err instanceof Error) {
-        if (err.name === 'NotAllowedError') {
-          setError('Microphone access denied. Please allow microphone access.');
-        } else if (err.name === 'NotFoundError') {
-          setError('No microphone found.');
-        } else {
-          setError(err.message);
+        switch (err.name) {
+          case 'NotAllowedError':
+            errorMessage = 'Microphone permission denied. Please allow microphone access in your browser settings.';
+            break;
+            
+          case 'NotFoundError':
+            errorMessage = 'No microphone found. Please connect a microphone device.';
+            break;
+            
+          case 'NotReadableError':
+            errorMessage = 'Microphone is in use by another application. Please close other apps using the microphone.';
+            break;
+            
+          case 'OverconstrainedError':
+            errorMessage = 'Microphone constraints cannot be satisfied.';
+            break;
+            
+          case 'TypeError':
+            errorMessage = 'Microphone access is not supported in this browser or context.';
+            break;
+            
+          case 'AbortError':
+            errorMessage = 'Microphone access was aborted.';
+            break;
+            
+          default:
+            errorMessage = err.message || 'An unknown error occurred while accessing the microphone.';
         }
       }
+      
+      setError(errorMessage);
       return null;
     } finally {
       setIsLoading(false);
@@ -187,44 +245,62 @@ export function useAudio() {
     stream1: MediaStream,
     stream2: MediaStream
   ): MediaStream => {
-    const audioCtx = getAudioContext();
+    try {
+      const audioCtx = getAudioContext();
+      
+      // Disconnect previous sources if they exist
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch (err) {
+          // Already disconnected, ignore
+        }
+      }
+      if (systemSourceRef.current) {
+        try {
+          systemSourceRef.current.disconnect();
+        } catch (err) {
+          // Already disconnected, ignore
+        }
+      }
+      
+      if (!destinationRef.current) {
+        destinationRef.current = audioCtx.createMediaStreamDestination();
+      }
+      
+      // Check if streams have audio tracks
+      if (!stream1.getAudioTracks().length || !stream2.getAudioTracks().length) {
+        throw new Error('One or both audio streams do not have audio tracks.');
+      }
+      
+      const source1 = audioCtx.createMediaStreamSource(stream1);
+      const source2 = audioCtx.createMediaStreamSource(stream2);
+      
+      // Store refs for cleanup
+      micSourceRef.current = source1;
+      systemSourceRef.current = source2;
+      
+      const gain1 = audioCtx.createGain();
+      const gain2 = audioCtx.createGain();
+      
+      gain1.gain.value = 1.0;  // Mic volume
+      gain2.gain.value = 0.8;  // System audio slightly lower
     
-    // Disconnect previous sources if they exist
-    if (micSourceRef.current) {
-      micSourceRef.current.disconnect();
+      source1.connect(gain1);
+      gain1.connect(destinationRef.current);
+      
+      source2.connect(gain2);
+      gain2.connect(destinationRef.current);
+      
+      // Return the mixed stream
+      return destinationRef.current.stream;
+    } catch (err) {
+      const errorMessage = err instanceof Error 
+        ? `Failed to mix audio: ${err.message}` 
+        : 'Failed to mix audio streams.';
+      setError(errorMessage);
+      throw err;
     }
-    if (systemSourceRef.current) {
-      systemSourceRef.current.disconnect();
-    }
-    
- 
-    if (!destinationRef.current) {
-      destinationRef.current = audioCtx.createMediaStreamDestination();
-    }
-    
- 
-    const source1 = audioCtx.createMediaStreamSource(stream1);
-    const source2 = audioCtx.createMediaStreamSource(stream2);
-    
-    // Store refs for cleanup
-    micSourceRef.current = source1;
-    systemSourceRef.current = source2;
-    
-   
-    const gain1 = audioCtx.createGain();
-    const gain2 = audioCtx.createGain();
-    
-    gain1.gain.value = 1.0;  // Mic volume
-    gain2.gain.value = 0.8;  // System audio slightly lower
-  
-    source1.connect(gain1);
-    gain1.connect(destinationRef.current);
-    
-    source2.connect(gain2);
-    gain2.connect(destinationRef.current);
-    
-    // Return the mixed stream
-    return destinationRef.current.stream;
   }, [getAudioContext]);
 
   // ============================================
@@ -232,36 +308,64 @@ export function useAudio() {
   // ============================================
   
   const cleanup = useCallback(() => {
-    // Stop microphone
-    if (audioState.microphoneStream) {
-      audioState.microphoneStream.getTracks().forEach(track => track.stop());
+    try {
+      // Stop microphone
+      if (audioState.microphoneStream) {
+        audioState.microphoneStream.getTracks().forEach(track => {
+          try {
+            track.stop();
+          } catch (err) {
+            console.warn('Error stopping microphone track:', err);
+          }
+        });
+      }
+      
+      // Disconnect audio nodes
+      if (micSourceRef.current) {
+        try {
+          micSourceRef.current.disconnect();
+        } catch (err) {
+          // Already disconnected, ignore
+        }
+        micSourceRef.current = null;
+      }
+      if (systemSourceRef.current) {
+        try {
+          systemSourceRef.current.disconnect();
+        } catch (err) {
+          // Already disconnected, ignore
+        }
+        systemSourceRef.current = null;
+      }
+      
+      // Close audio context
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        try {
+          audioContextRef.current.close();
+        } catch (err) {
+          console.warn('Error closing AudioContext:', err);
+        }
+        audioContextRef.current = null;
+      }
+      
+      destinationRef.current = null;
+      
+      setAudioState({
+        microphoneStream: null,
+        systemAudioStream: null,
+        mixedAudioStream: null,
+      });
+      setIsMicrophoneOn(false);
+      setError(null);
+    } catch (err) {
+      console.error('Error during audio cleanup:', err);
     }
-    
-    // Disconnect audio nodes
-    if (micSourceRef.current) {
-      micSourceRef.current.disconnect();
-      micSourceRef.current = null;
-    }
-    if (systemSourceRef.current) {
-      systemSourceRef.current.disconnect();
-      systemSourceRef.current = null;
-    }
-    
-    // Close audio context
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    
-    destinationRef.current = null;
-    
-    setAudioState({
-      microphoneStream: null,
-      systemAudioStream: null,
-      mixedAudioStream: null,
-    });
-    setIsMicrophoneOn(false);
   }, [audioState.microphoneStream]);
+  
+  // Clear error function
+  const clearError = useCallback(() => {
+    setError(null);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -290,5 +394,6 @@ export function useAudio() {
     setSystemAudio,
     getMixedAudioStream,
     cleanup,
+    clearError,
   };
 }

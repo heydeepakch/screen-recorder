@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useScreenCapture } from '@/hooks/useScreenCapture';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useCamera } from '@/hooks/useCamera';
@@ -11,25 +11,33 @@ import { PreviewModal } from '@/components/PreviewModal';
 import { CameraOverlay } from '@/components/CameraOverlay';
 import { CameraToggle } from '@/components/CameraToggle';
 import { SettingsPanel } from '@/components/SettingsPanel';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Tooltip } from '@/components/Tooltip';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { formatTime } from '@/lib/formatTime';
-import { 
-  CameraPosition, 
+import {
+  CameraPosition,
   AudioSource,
-  DEFAULT_CAMERA_SETTINGS, 
-  DEFAULT_RECORDING_SETTINGS 
+  DEFAULT_CAMERA_SETTINGS,
+  DEFAULT_RECORDING_SETTINGS
 } from '@/types';
 
 export default function Home() {
+  // ============================================
+  // HOOKS
+  // ============================================
 
-  const { 
-    screenStream, 
-    isSharing, 
+  const {
+    screenStream,
+    isSharing,
     hasSystemAudio,
-    error: captureError, 
-    startCapture, 
-    stopCapture 
+    error: captureError,
+    startCapture,
+    stopCapture,
+    clearError: clearCaptureError,
   } = useScreenCapture();
-  
+
   const {
     recordingState,
     recordedBlob,
@@ -40,6 +48,7 @@ export default function Home() {
     resumeRecording,
     stopRecording,
     discardRecording,
+    clearError: clearRecordError,
   } = useRecorder();
 
   const {
@@ -49,6 +58,7 @@ export default function Home() {
     error: cameraError,
     toggleCamera,
     stopCamera,
+    clearError: clearCameraError,
   } = useCamera();
 
   const {
@@ -59,6 +69,7 @@ export default function Home() {
     setSystemAudio,
     getMixedAudioStream,
     cleanup: cleanupAudio,
+    clearError: clearAudioError,
   } = useAudio();
 
   const {
@@ -67,9 +78,14 @@ export default function Home() {
     updateConfig,
     outputStream,
     isCompositing,
+    error: compositorError,
+    clearError: clearCompositorError,
   } = useCanvasCompositor();
 
-  
+  // ============================================
+  // SETTINGS STATE
+  // ============================================
+
   // Camera settings
   const [cameraPosition, setCameraPosition] = useState<CameraPosition>(
     DEFAULT_CAMERA_SETTINGS.position
@@ -82,79 +98,66 @@ export default function Home() {
   // Recording settings
   const [fps, setFps] = useState(DEFAULT_RECORDING_SETTINGS.fps);
   const [videoBitrate, setVideoBitrate] = useState(DEFAULT_RECORDING_SETTINGS.videoBitrate);
-  
+
   // Audio settings
   const [audioSource, setAudioSource] = useState<AudioSource>(
     DEFAULT_RECORDING_SETTINGS.audioSource
   );
 
- 
+  // ============================================
+  // DERIVED STATE
+  // ============================================
+
+  // Aggregate all errors
+  const error = captureError || recordError || cameraError || audioError || compositorError;
+
+  // Determine error source for better error handling
+  const errorSource = captureError ? 'capture'
+    : recordError ? 'recording'
+      : cameraError ? 'camera'
+        : audioError ? 'audio'
+          : compositorError ? 'compositor'
+            : null;
+
+  const isRecordingActive = recordingState === 'recording' || recordingState === 'paused';
+  const showPreview = recordingState === 'stopped' && recordedBlob !== null;
+
+  // Clear all errors function
+  const clearAllErrors = useCallback(() => {
+    clearCaptureError();
+    clearRecordError();
+    clearCameraError();
+    clearAudioError();
+    clearCompositorError();
+  }, [clearCaptureError, clearRecordError, clearCameraError, clearAudioError, clearCompositorError]);
+
+  // Memoize expensive calculations
+  const sizeRatio = useMemo(() => {
+    return Math.max(0.1, Math.min(0.4, cameraSize / 1080));
+  }, [cameraSize]);
+
+  // ============================================
+  // EFFECTS
+  // ============================================
+
+  // Sync system audio from screen capture
   useEffect(() => {
     if (screenStream) {
       setSystemAudio(screenStream);
     }
   }, [screenStream, setSystemAudio]);
 
-
-  const error = captureError || recordError || cameraError || audioError;
-  const isRecordingActive = recordingState === 'recording' || recordingState === 'paused';
-  const showPreview = recordingState === 'stopped' && recordedBlob !== null;
-
-
+  // Update compositor config when settings change
   useEffect(() => {
     if (isCompositing) {
-      const sizeRatio = cameraSize / 1080;
       updateConfig({
         cameraPosition,
-        cameraSizeRatio: Math.max(0.1, Math.min(0.4, sizeRatio)),
+        cameraSizeRatio: sizeRatio,
         cameraBorderRadius,
         fps,
       });
     }
-  }, [cameraPosition, cameraSize, cameraBorderRadius, fps, isCompositing, updateConfig]);
-
-
-
-  const handleStartSharing = useCallback(async () => {
-    // Request screen with audio if user wants system audio
-    await startCapture({ 
-      withAudio: audioSource === 'system' || audioSource === 'both' 
-    });
-  }, [startCapture, audioSource]);
-
-
-  const handleStartRecording = useCallback(() => {
-    if (!screenStream) return;
-    
-    const sizeRatio = cameraSize / 1080;
-    
-    // Get mixed audio stream based on selection
-    const audioStream = getMixedAudioStream(audioSource);
-    
-    // Start compositing screen + camera + audio
-    startCompositing(
-      screenStream, 
-      cameraStream, 
-      audioStream,  // Pass audio stream
-      {
-        fps,
-        cameraPosition,
-        cameraSizeRatio: Math.max(0.1, Math.min(0.4, sizeRatio)),
-        cameraBorderRadius,
-        padding: 20,
-      }
-    );
-  }, [
-    screenStream, 
-    cameraStream, 
-    cameraPosition, 
-    cameraSize, 
-    cameraBorderRadius, 
-    fps, 
-    audioSource,
-    getMixedAudioStream,
-    startCompositing
-  ]);
+  }, [cameraPosition, cameraSize, cameraBorderRadius, fps, isCompositing, updateConfig, sizeRatio]);
 
   // Start recording when output stream is ready
   useEffect(() => {
@@ -163,10 +166,6 @@ export default function Home() {
     }
   }, [outputStream, isCompositing, recordingState, startRecording, videoBitrate]);
 
-  const handleStopRecording = useCallback(() => {
-    stopRecording();
-  }, [stopRecording]);
-
   // Stop compositor when recording stops
   useEffect(() => {
     if (recordingState === 'stopped' && isCompositing) {
@@ -174,7 +173,78 @@ export default function Home() {
     }
   }, [recordingState, isCompositing, stopCompositing]);
 
-  const handleStopSharing = () => {
+  // ============================================
+  // HANDLERS
+  // ============================================
+
+  const handleStartSharing = useCallback(async () => {
+    // Always request audio so browser shows "Share tab audio" option
+    // User can choose to use it or not based on their audio source selection
+    await startCapture({
+      withAudio: true
+    });
+  }, [startCapture]);
+
+  /**
+   * Start recording with all streams combined
+   */
+  const handleStartRecording = useCallback(() => {
+    if (!screenStream) {
+      clearAllErrors();
+      // This shouldn't happen, but handle gracefully
+      return;
+    }
+
+    try {
+      // Clear previous errors
+      clearAllErrors();
+
+      // Get mixed audio stream based on selection
+      const audioStream = getMixedAudioStream(audioSource);
+
+      // Start compositing screen + camera + audio
+      const result = startCompositing(
+        screenStream,
+        cameraStream,
+        audioStream,
+        {
+          fps,
+          cameraPosition,
+          cameraSizeRatio: sizeRatio,
+          cameraBorderRadius,
+          padding: 20,
+        }
+      );
+
+      // If compositing failed, show error
+      if (!result && compositorError) {
+        // Error is already set by the hook
+        console.error('Failed to start compositing');
+      }
+    } catch (err) {
+      console.error('Error starting recording:', err);
+      // Error handling is done by hooks
+    }
+  }, [
+    screenStream,
+    cameraStream,
+    cameraPosition,
+    cameraSize,
+    cameraBorderRadius,
+    fps,
+    audioSource,
+    getMixedAudioStream,
+    startCompositing,
+    sizeRatio,
+    clearAllErrors,
+    compositorError,
+  ]);
+
+  const handleStopRecording = useCallback(() => {
+    stopRecording();
+  }, [stopRecording]);
+
+  const handleStopSharing = useCallback(() => {
     if (isRecordingActive) {
       stopRecording();
     }
@@ -182,20 +252,36 @@ export default function Home() {
     stopCapture();
     stopCamera();
     cleanupAudio();
-  };
+  }, [isRecordingActive, stopRecording, stopCompositing, stopCapture, stopCamera, cleanupAudio]);
 
-  const handleDiscard = () => {
+  const handleDiscard = useCallback(() => {
     discardRecording();
-  };
+  }, [discardRecording]);
 
-  const handleDownloaded = () => {
+  const handleDownloaded = useCallback(() => {
     discardRecording();
-  };
+  }, [discardRecording]);
 
   // ============================================
-  // AUDIO INDICATOR TEXT
+  // KEYBOARD SHORTCUTS
   // ============================================
-  
+
+  useKeyboardShortcuts({
+    onToggleRecording: isSharing && recordingState === 'idle'
+      ? handleStartRecording
+      : isRecordingActive
+        ? handleStopRecording
+        : undefined,
+    onTogglePause: isRecordingActive
+      ? (recordingState === 'recording' ? pauseRecording : resumeRecording)
+      : undefined,
+    onStopSharing: isSharing ? handleStopSharing : undefined,
+  });
+
+  // ============================================
+  // HELPER FUNCTIONS
+  // ============================================
+
   const getAudioStatusText = () => {
     if (audioSource === 'none') return 'No audio';
     if (audioSource === 'microphone' && isMicrophoneOn) return 'Mic';
@@ -204,24 +290,28 @@ export default function Home() {
     return 'No audio';
   };
 
+  // ============================================
+  // RENDER
+  // ============================================
+
   return (
     <main className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
-        
+
         {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold tracking-tight mb-1">
             Screen Recorder
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             Simple and minimal screen recording
           </p>
         </div>
 
         {/* Screen Preview */}
-        <div className="mb-6 relative">
+        <div className="mb-4 relative">
           <ScreenPreview stream={screenStream} />
-          
+
           {/* Camera Overlay Preview */}
           {isSharing && !isRecordingActive && (
             <CameraOverlay
@@ -229,10 +319,9 @@ export default function Home() {
               position={cameraPosition}
               size={cameraSize}
               borderRadius={cameraBorderRadius}
-              onClose={stopCamera}
             />
           )}
-          
+
           {/* Recording indicators */}
           {isRecordingActive && isCameraOn && (
             <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full text-white text-xs">
@@ -240,7 +329,7 @@ export default function Home() {
               Camera recording
             </div>
           )}
-          
+
           {recordingState === 'recording' && (
             <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
               <span className="w-3 h-3 bg-recording rounded-full animate-pulse-recording" />
@@ -249,7 +338,7 @@ export default function Home() {
               </span>
             </div>
           )}
-          
+
           {recordingState === 'paused' && (
             <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
               <span className="w-3 h-3 bg-yellow-500 rounded-full" />
@@ -258,7 +347,7 @@ export default function Home() {
               </span>
             </div>
           )}
-          
+
           {/* Quality/Audio badge */}
           {isRecordingActive && (
             <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full text-white text-xs">
@@ -269,46 +358,90 @@ export default function Home() {
 
         {/* Error Message */}
         {error && (
-          <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
-            Error: {error}
+          <div className="mb-4">
+            <ErrorDisplay
+              error={error}
+              onRetry={
+                errorSource === 'camera'
+                  ? () => {
+                    clearCameraError();
+                    toggleCamera();
+                  }
+                  : errorSource === 'audio'
+                    ? () => {
+                      clearAudioError();
+                      toggleMicrophone();
+                    }
+                    : errorSource === 'capture'
+                      ? () => {
+                        clearCaptureError();
+                        handleStartSharing();
+                      }
+                      : errorSource === 'recording'
+                        ? () => {
+                          clearRecordError();
+                          if (isSharing && recordingState === 'idle') {
+                            handleStartRecording();
+                          }
+                        }
+                        : errorSource === 'compositor'
+                          ? () => {
+                            clearCompositorError();
+                            if (isSharing && recordingState === 'idle') {
+                              handleStartRecording();
+                            }
+                          }
+                          : undefined
+              }
+              onDismiss={clearAllErrors}
+            />
+          </div>
+        )}
+
+        {/* Loading state when starting recording */}
+        {isCompositing && recordingState === 'idle' && (
+          <div className="mb-4 flex justify-center">
+            <LoadingSpinner text="Preparing recording..." size="md" />
           </div>
         )}
 
         {/* Camera & Mic Toggles */}
         {isSharing && recordingState !== 'stopped' && (
-          <div className="mb-4 flex justify-center gap-3">
+          <div className="mb-4 flex flex-wrap justify-center gap-3">
             <CameraToggle
               isOn={isCameraOn}
               isLoading={isCameraLoading}
               onToggle={toggleCamera}
             />
             {/* Microphone Toggle */}
-            <button
-              onClick={toggleMicrophone}
-              disabled={isMicLoading}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
-                ${isMicrophoneOn 
-                  ? 'bg-accent text-white hover:bg-accent-hover' 
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                }
-                ${isMicLoading ? 'opacity-50 cursor-not-allowed' : ''}
-              `}
-            >
-              {isMicLoading ? (
-                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                </svg>
-              )}
-              <span className="text-sm">
-                {isMicLoading ? 'Loading...' : isMicrophoneOn ? 'Mic On' : 'Mic Off'}
-              </span>
-            </button>
+            <Tooltip content={isMicrophoneOn ? 'Turn off microphone' : 'Turn on microphone'}>
+              <button
+                onClick={toggleMicrophone}
+                disabled={isMicLoading}
+                className={`
+                  flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
+                  ${isMicrophoneOn
+                    ? 'bg-accent text-white hover:bg-accent-hover'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }
+                  ${isMicLoading ? 'opacity-50 cursor-not-allowed' : ''}
+                `}
+              >
+                {isMicLoading ? (
+                  <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                )}
+                <span className="text-sm">
+                  {isMicLoading ? 'Loading...' : isMicrophoneOn ? 'Mic On' : 'Mic Off'}
+                </span>
+              </button>
+            </Tooltip>
           </div>
         )}
 
@@ -339,43 +472,51 @@ export default function Home() {
         )}
 
         {/* Main Controls */}
-        <div className="flex justify-center gap-3">
-          
+        <div className="flex flex-col sm:flex-row justify-center gap-3">
+
           {!isSharing && recordingState === 'idle' && (
-            <button
-              onClick={handleStartSharing}
-              className="px-6 py-3 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg transition-colors"
-            >
-              Share Screen
-            </button>
+            <Tooltip content="Start sharing your screen">
+              <button
+                onClick={handleStartSharing}
+                className="px-6 py-3 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg transition-colors"
+              >
+                Share Screen
+              </button>
+            </Tooltip>
           )}
-          
+
           {isSharing && recordingState === 'idle' && (
             <>
-              <button
-                onClick={handleStartRecording}
-                className="px-6 py-3 bg-recording hover:bg-red-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
-              >
-                <span className="w-3 h-3 bg-white rounded-full" />
-                Start Recording
-              </button>
-              <button
-                onClick={handleStopSharing}
-                className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
-              >
-                Stop Sharing
-              </button>
+              <Tooltip content="Start recording (Ctrl+Shift+R)">
+                <button
+                  onClick={handleStartRecording}
+                  className="px-6 py-3 bg-recording hover:bg-red-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <span className="w-3 h-3 bg-white rounded-full" />
+                  Start Recording
+                </button>
+              </Tooltip>
+              <Tooltip content="Stop sharing (Esc)">
+                <button
+                  onClick={handleStopSharing}
+                  className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
+                >
+                  Stop Sharing
+                </button>
+              </Tooltip>
             </>
           )}
-          
+
           {recordingState === 'recording' && (
             <>
-              <button
-                onClick={pauseRecording}
-                className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors"
-              >
-                Pause
-              </button>
+              <Tooltip content="Pause recording (Space)">
+                <button
+                  onClick={pauseRecording}
+                  className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors"
+                >
+                  Pause
+                </button>
+              </Tooltip>
               <button
                 onClick={handleStopRecording}
                 className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
@@ -384,15 +525,17 @@ export default function Home() {
               </button>
             </>
           )}
-          
+
           {recordingState === 'paused' && (
             <>
-              <button
-                onClick={resumeRecording}
-                className="px-6 py-3 bg-recording hover:bg-red-600 text-white font-medium rounded-lg transition-colors"
-              >
-                Resume
-              </button>
+              <Tooltip content="Resume recording (Space)">
+                <button
+                  onClick={resumeRecording}
+                  className="px-6 py-3 bg-recording hover:bg-red-600 text-white font-medium rounded-lg transition-colors"
+                >
+                  Resume
+                </button>
+              </Tooltip>
               <button
                 onClick={handleStopRecording}
                 className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
@@ -403,16 +546,72 @@ export default function Home() {
           )}
         </div>
 
-        {/* Status */}
-        <div className="mt-6 text-center text-sm text-muted-foreground">
+        {/* Status - Enhanced */}
+        <div className="mt-6 text-center space-y-2">
           {isSharing && recordingState === 'idle' && (
-            <p>
-              Ready: {fps}fps, {videoBitrate}Mbps
-              {isCameraOn && ' • Camera'}
-              {audioSource !== 'none' && ` • Audio: ${getAudioStatusText()}`}
+            <>
+              <p className="text-sm text-muted-foreground">
+                Ready: {fps}fps, {videoBitrate}Mbps
+                {isCameraOn && ' • Camera'}
+                {audioSource !== 'none' && ` • Audio: ${getAudioStatusText()}`}
+              </p>
+              {!isCameraOn && audioSource === 'none' && (
+                <p className="text-xs text-muted-foreground/70">
+                  💡 Enable camera or audio to enhance your recording
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground/70">
+                💡 Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Ctrl+Shift+R</kbd> to start recording
+              </p>
+            </>
+          )}
+
+          {isRecordingActive && (
+            <p className="text-sm text-muted-foreground">
+              Recording at {fps}fps • {videoBitrate}Mbps
+              {isCameraOn && ' • Camera included'}
+              {audioSource !== 'none' && ` • ${getAudioStatusText()}`}
             </p>
           )}
         </div>
+
+        {/* Help Section - Collapsible */}
+        {!isSharing && (
+          <details className="mt-8 p-4 bg-card rounded-lg border border-border">
+            <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+              ℹ️ How to use
+            </summary>
+            <div className="mt-4 space-y-3 text-sm text-muted-foreground">
+              <div>
+                <p className="font-medium text-foreground mb-1">Getting Started:</p>
+                <ol className="list-decimal list-inside space-y-1 ml-2">
+                  <li>Click "Share Screen" and select what to record</li>
+                  <li>Optionally enable camera and microphone</li>
+                  <li>Adjust settings (FPS, quality, camera position)</li>
+                  <li>Click "Start Recording"</li>
+                </ol>
+              </div>
+
+              <div>
+                <p className="font-medium text-foreground mb-1">Keyboard Shortcuts:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Ctrl+Shift+R</kbd> - Start/Stop recording</li>
+                  <li><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd> - Pause/Resume</li>
+                  <li><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Esc</kbd> - Stop sharing</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="font-medium text-foreground mb-1">Tips:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>For system audio, share a browser tab and check "Share tab audio"</li>
+                  <li>Higher bitrate = better quality but larger files</li>
+                  <li>60fps is great for gaming, 30fps for most content</li>
+                </ul>
+              </div>
+            </div>
+          </details>
+        )}
       </div>
 
       {/* Preview Modal */}
