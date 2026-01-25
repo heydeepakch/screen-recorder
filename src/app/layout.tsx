@@ -10,7 +10,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "Screen Recorder",
-  description: "A clean and minimal screen recorder with webcam overlay",
+  description: "simple and minimal screen recorder",
 };
 
 export default function RootLayout({

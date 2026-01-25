@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Screen Recorder
 
-## Getting Started
+A browser-based screen recorder built with Next.js. Record your screen with optional webcam overlay and microphone audio.
 
-First, run the development server:
+## Features
 
+- Screen recording with customizable quality (FPS and bitrate)
+- Webcam overlay with adjustable position, size, and roundness
+- Microphone audio recording
+- System audio capture (when sharing browser tabs)
+- Pause and resume recording
+- Preview before download
+- WebM output format
+
+## Requirements
+
+- Node.js 18 or higher
+- Modern browser with screen capture support (Chrome, Edge, Firefox)
+
+## Setup
+
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Start the development server:
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Open http://localhost:3000 in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Usage
 
-## Learn More
+1. Click "Share Screen" and select what to record.
+2. Enable camera and/or microphone if needed.
+3. Adjust settings (FPS, quality, camera position).
+4. Click "Start Recording".
+5. Click "Stop Recording" when done.
+6. Preview and download the recording.
 
-To learn more about Next.js, take a look at the following resources:
+## Keyboard Shortcuts
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `Ctrl+Shift+R` - Start/Stop recording
+- `Space` - Pause/Resume recording
+- `Esc` - Stop sharing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build for Production
 
-## Deploy on Vercel
+```bash
+npm run build
+npm start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Tech Stack
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
+- Radix UI
