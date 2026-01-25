@@ -109,7 +109,7 @@ export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: Previe
           <button
             onClick={handleDownload}
             disabled={isDownloading}
-            className="px-5 py-2.5 bg-success hover:bg-muted-foreground text-black font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2.5 bg-zinc-200 hover:bg-muted-foreground text-black font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {isDownloading ? (
               <>

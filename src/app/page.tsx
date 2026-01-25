@@ -515,16 +515,16 @@ export default function Home() {
               <Tooltip content="Start recording (Ctrl+Shift+R)">
                 <button
                   onClick={handleStartRecording}
-                  className="px-6 py-3 bg-recording hover:bg-muted-foreground text-black font-medium rounded-3xl transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-red-500 hover:bg-red-700 text-white font-medium rounded-3xl transition-colors flex items-center gap-2 cursor-pointer"
                 >
-                  <span className="w-3 h-3 bg-black rounded-full" />
+                  <span className="w-3 h-3 bg-white rounded-full" />
                   Start Recording
                 </button>
               </Tooltip>
               <Tooltip content="Stop sharing (Esc)">
                 <button
                   onClick={handleStopSharing}
-                  className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-3xl transition-colors"
+                  className="px-6 py-3 bg-muted hover:bg-zinc-800 text-foreground font-medium rounded-3xl transition-colors"
                 >
                   Stop Sharing
                 </button>
@@ -537,14 +537,14 @@ export default function Home() {
               <Tooltip content="Pause recording (Space)">
                 <button
                   onClick={pauseRecording}
-                  className="px-6 py-3 bg-muted-foreground hover:bg-muted-foreground/80 text-white font-medium rounded-lg transition-colors"
+                  className="px-6 py-3 bg-zinc-800 hover:bg-zinc-500 text-white font-medium rounded-lg transition-colors"
                 >
                   Pause
                 </button>
               </Tooltip>
               <button
                 onClick={handleStopRecording}
-                className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
+                className="px-6 py-3 bg-red-900/50 hover:bg-red-700 text-white font-medium rounded-lg border border-red-500 transition-colors"
               >
                 Stop Recording
               </button>
@@ -563,7 +563,7 @@ export default function Home() {
               </Tooltip>
               <button
                 onClick={handleStopRecording}
-                className="px-6 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-lg transition-colors"
+                className="px-6 py-3 bg-red-700 hover:bg-red-600 text-white font-medium rounded-lg border border-red-500 transition-colors"
               >
                 Stop Recording
               </button>
