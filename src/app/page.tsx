@@ -503,7 +503,7 @@ export default function Home() {
             <Tooltip content="Start sharing your screen">
               <button
                 onClick={handleStartSharing}
-                className="px-6 py-3 bg-accent hover:bg-accent-hover text-black font-medium rounded-3xl transition-colors"
+                className="px-6 py-2 my-3 bg-accent hover:bg-accent-hover text-black font-medium rounded-3xl transition-colors cursor-pointer"
               >
                 Share Screen
               </button>
@@ -515,7 +515,7 @@ export default function Home() {
               <Tooltip content="Start recording (Ctrl+Shift+R)">
                 <button
                   onClick={handleStartRecording}
-                  className="px-6 py-3 bg-red-500 hover:bg-red-700 text-white font-medium rounded-3xl transition-colors flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2 bg-red-500 hover:bg-red-700 text-white font-medium rounded-3xl transition-colors flex items-center gap-2 cursor-pointer"
                 >
                   <span className="w-3 h-3 bg-white rounded-full" />
                   Start Recording
@@ -524,7 +524,7 @@ export default function Home() {
               <Tooltip content="Stop sharing (Esc)">
                 <button
                   onClick={handleStopSharing}
-                  className="px-6 py-3 bg-muted hover:bg-zinc-800 text-foreground font-medium rounded-3xl transition-colors"
+                  className="px-6 py-2 bg-muted hover:bg-zinc-800 text-foreground font-medium rounded-3xl transition-colors"
                 >
                   Stop Sharing
                 </button>
