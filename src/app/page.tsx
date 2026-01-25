@@ -3,10 +3,11 @@
 import { useScreenCapture } from '@/hooks/useScreenCapture';
 import { useRecorder } from '@/hooks/useRecorder';
 import { ScreenPreview } from '@/components/ScreenPreview';
+import { PreviewModal } from '@/components/PreviewModal';
 import { formatTime } from '@/lib/formatTime';
 
 export default function Home() {
- 
+  // Screen capture hook
   const { 
     screenStream, 
     isSharing, 
@@ -15,7 +16,7 @@ export default function Home() {
     stopCapture 
   } = useScreenCapture();
   
-
+  // Recording hook
   const {
     recordingState,
     recordedBlob,
@@ -33,11 +34,13 @@ export default function Home() {
   
 
   const isRecordingActive = recordingState === 'recording' || recordingState === 'paused';
-
+  
+ 
+  const showPreview = recordingState === 'stopped' && recordedBlob !== null;
 
   const handleStartRecording = () => {
     if (screenStream) {
-      startRecording(screenStream, 4);
+      startRecording(screenStream, 4); // 4 Mbps
     }
   };
 
@@ -46,6 +49,16 @@ export default function Home() {
       stopRecording();
     }
     stopCapture();
+  };
+
+  const handleDiscard = () => {
+    discardRecording();
+    
+  };
+
+  const handleDownloaded = () => {
+    discardRecording();
+   
   };
 
   return (
@@ -161,28 +174,6 @@ export default function Home() {
               </button>
             </>
           )}
-          
-          {/* Recording stopped - show result info */}
-          {recordingState === 'stopped' && recordedBlob && (
-            <>
-              <button
-                onClick={discardRecording}
-                className="px-6 py-3 bg-destructive hover:bg-destructive-hover text-white font-medium rounded-lg transition-colors"
-              >
-                Discard
-              </button>
-              <button
-                onClick={() => {
-                  // We'll add download in Phase 5
-                  console.log('Download - coming in Phase 5!');
-                  console.log('Blob size:', (recordedBlob.size / 1024 / 1024).toFixed(2), 'MB');
-                }}
-                className="px-6 py-3 bg-success hover:bg-green-600 text-white font-medium rounded-lg transition-colors"
-              >
-                Download
-              </button>
-            </>
-          )}
         </div>
 
         {/* Status info */}
@@ -190,15 +181,18 @@ export default function Home() {
           {isSharing && recordingState === 'idle' && (
             <p>Screen sharing active. Click "Start Recording" to begin.</p>
           )}
-          
-          {recordingState === 'stopped' && recordedBlob && (
-            <p>
-              Recording complete! Size: {(recordedBlob.size / 1024 / 1024).toFixed(2)} MB | 
-              Duration: {formatTime(duration)}
-            </p>
-          )}
         </div>
       </div>
+
+     
+      {showPreview && recordedBlob && (
+        <PreviewModal
+          blob={recordedBlob}
+          duration={duration}
+          onDiscard={handleDiscard}
+          onDownloaded={handleDownloaded}
+        />
+      )}
     </main>
   );
 }
