@@ -43,9 +43,10 @@ export function ScreenPreview({ stream }: ScreenPreviewProps) {
 
   return (
     <div
-      className="relative w-full max-h-[400px] rounded-lg overflow-hidden bg-background"
+      className="relative w-full rounded-lg overflow-hidden bg-muted"
       style={{
         aspectRatio: aspectRatio ? `${aspectRatio}` : '16/9',
+        maxHeight: '450px',
       }}
     >
       {stream ? (

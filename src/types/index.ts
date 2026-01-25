@@ -35,8 +35,8 @@ export interface RecorderConfig {
 export const DEFAULT_CAMERA_SETTINGS: CameraSettings = {
   enabled: true,
   position: 'bottom-left',
-  size: 200,          // 200x200 pixels
-  borderRadius: 50,   // Perfect circle
+  size: 250,          // 250px base size (range: 80-600, scaled based on video height)
+  borderRadius: 100,  // 100 = Perfect circle, 0 = square corners (range: 0-100)
 };
 
 export const DEFAULT_RECORDING_SETTINGS: RecordingSettings = {

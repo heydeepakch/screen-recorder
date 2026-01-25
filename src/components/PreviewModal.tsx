@@ -5,9 +5,9 @@ import { formatTime } from '@/lib/formatTime';
 import { downloadBlob, generateFilename } from '@/lib/downloadBlob';
 
 interface PreviewModalProps {
- 
+
   blob: Blob;
- 
+
   duration: number;
 
   onDiscard: () => void;
@@ -32,13 +32,13 @@ export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: Previe
 
   const handleDownload = () => {
     setIsDownloading(true);
-    
-  
+
+
     const filename = generateFilename('webm');
-    
-  
+
+
     downloadBlob(blob, filename);
-    
+
 
     setTimeout(() => {
       setIsDownloading(false);
@@ -53,12 +53,12 @@ export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: Previe
   };
 
   return (
-   
+
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 animate-fade-in">
-      
+
       {/* Modal content */}
       <div className="w-full max-w-3xl bg-card rounded-xl shadow-2xl overflow-hidden animate-slide-up">
-        
+
         {/* Header */}
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-xl font-semibold">Recording Preview</h2>
@@ -109,23 +109,23 @@ export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: Previe
           <button
             onClick={handleDownload}
             disabled={isDownloading}
-            className="px-5 py-2.5 bg-success hover:bg-green-600 text-white font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-5 py-2.5 bg-success hover:bg-muted-foreground text-black font-medium rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
           >
             {isDownloading ? (
               <>
                 <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24">
-                  <circle 
-                    className="opacity-25" 
-                    cx="12" 
-                    cy="12" 
-                    r="10" 
-                    stroke="currentColor" 
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
                     strokeWidth="4"
                     fill="none"
                   />
-                  <path 
-                    className="opacity-75" 
-                    fill="currentColor" 
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                   />
                 </svg>

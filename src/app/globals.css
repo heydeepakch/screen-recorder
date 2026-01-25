@@ -16,42 +16,40 @@
 
 :root {
   /* 
-   * Main colors - Dark theme
-   * We're using a dark theme because:
-   * 1. Easier on the eyes for screen recording
-   * 2. Modern, minimal aesthetic
-   * 3. Recording UI won't distract from content
+   * Main colors - Greyish, Black & White theme
+   * Monochromatic theme with greys, blacks, and whites
    */
-  --background: #09090b;      /* Almost black - main background */
-  --foreground: #fafafa;      /* Almost white - main text */
+  --background: #0a0a0a;      /* Pure black - main background */
+  --foreground: #ffffff;     /* Pure white - main text */
   
   /* Muted colors - for secondary/less important elements */
-  --muted: #27272a;           /* Dark gray - secondary backgrounds */
-  --muted-foreground: #a1a1aa;/* Medium gray - secondary text */
+  --muted: #1a1a1a;          /* Dark grey - secondary backgrounds */
+  --muted-foreground: #9a9a9a;/* Medium grey - secondary text */
   
-  /* Accent color - draws attention to important actions */
-  --accent: #3b82f6;          /* Blue - buttons, links, highlights */
-  --accent-hover: #2563eb;    /* Darker blue - hover state */
+  /* Accent color - greyish white for important actions */
+  --accent: #e5e5e5;         /* Light grey - buttons, links, highlights */
+  --accent-hover: #d4d4d4;  /* Slightly darker grey - hover state */
+  --accent-rgb: 229, 229, 229; /* RGB for opacity variations */
   
-  /* Destructive - for dangerous actions (delete, discard) */
-  --destructive: #ef4444;     /* Red - warning/danger */
-  --destructive-hover: #dc2626;
+  /* Destructive - greyish for dangerous actions */
+  --destructive: #737373;    /* Medium grey - warning/danger */
+  --destructive-hover: #525252; /* Darker grey - hover state */
   
-  /* Success - for positive actions */
-  --success: #22c55e;         /* Green - success states */
+  /* Success - light grey for positive actions */
+  --success: #a3a3a3;        /* Light grey - success states */
   
   /* Card - elevated surfaces */
-  --card: #18181b;            /* Slightly lighter than background */
-  --card-foreground: #fafafa;
+  --card: #141414;           /* Slightly lighter than background */
+  --card-foreground: #ffffff;
   
   /* Border */
-  --border: #27272a;          /* Subtle borders */
+  --border: #2a2a2a;         /* Subtle grey borders */
   
   /* Recording indicator */
-  --recording: #ef4444;       /* Red dot when recording */
+  --recording: #ffffff;       /* White dot when recording */
   
   /* Border radius */
-  --radius: 0.75rem;          /* 12px - rounded corners */
+  --radius: 0.75rem;         /* 12px - rounded corners */
 }
 
 /* ==========================================
@@ -76,8 +74,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-border: var(--border);
   --color-recording: var(--recording);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
 
 /* ==========================================
@@ -92,7 +89,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* ==========================================
@@ -207,7 +204,7 @@ button:active {
 
 /* Keyboard key styling */
 kbd {
-  font-family: var(--font-mono), monospace;
+  font-family: var(--font-inter), system-ui, sans-serif;
   font-size: 0.875em;
 }
 
@@ -240,9 +237,136 @@ input[type="range"]:hover {
   opacity: 1;
 }
 
-/* Better select styling */
+/* ==========================================
+   Custom Dropdown/Select Styling
+   ========================================== */
+
+/* Base select styling */
 select {
   cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.5rem;
+  transition: all 0.2s ease;
+}
+
+/* Select hover state */
+select:hover {
+  background-color: var(--muted);
+  border-color: var(--border);
+}
+
+/* Select focus state */
+select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.2);
+}
+
+/* Select option styling */
+select option {
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
+  padding: 0.5rem;
+}
+
+/* Select option hover and selected state (for when dropdown is open) */
+select option:hover,
+select option:focus,
+select option:checked,
+select option:active {
+  background-color: var(--accent) !important;
+  color: var(--background) !important;
+}
+
+/* Disabled option styling */
+select option:disabled {
+  color: var(--muted-foreground) !important;
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--muted) !important;
+}
+
+/* Remove default browser selection highlight for dropdowns */
+select option::-moz-selection {
+  background-color: var(--accent) !important;
+  color: var(--background) !important;
+}
+
+/* Custom selection color for dropdown (Webkit browsers) */
+select option:checked {
+  background: var(--accent) !important;
+  color: var(--background) !important;
+}
+
+/* Override browser default selection colors */
+::selection {
+  background-color: var(--accent);
+  color: var(--background);
+}
+
+::-moz-selection {
+  background-color: var(--accent);
+  color: var(--background);
+}
+
+/* For IE/Edge */
+select::-ms-expand {
+  display: none;
+}
+
+/* Additional styling to prevent blue highlight */
+select:focus option:checked {
+  background: var(--accent) !important;
+  color: var(--background) !important;
+}
+
+/* Force dark color scheme for selects to prevent blue highlights */
+select {
+  color-scheme: dark;
+}
+
+/* Webkit specific - override selection highlight */
+select option::-webkit-scrollbar {
+  width: 8px;
+}
+
+select option::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+select option::-webkit-scrollbar-thumb {
+  background: var(--muted-foreground);
+  border-radius: 4px;
+}
+
+select option::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* Custom dropdown wrapper for better styling */
+.dropdown-wrapper {
+  position: relative;
+}
+
+.dropdown-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid var(--muted-foreground);
+  transition: transform 0.2s ease;
+}
+
+.dropdown-wrapper:focus-within::after {
+  transform: translateY(-50%) rotate(180deg);
 }
 
 /* Loading state for buttons */
@@ -254,4 +378,38 @@ button:disabled {
 /* Improved card hover effect */
 .bg-card:hover {
   transition: background-color 0.2s;
+}
+
+/* ==========================================
+   Radix UI Select Styling
+   ========================================== */
+
+/* Ensure Radix UI Select portal content matches theme */
+[data-radix-select-content] {
+  background-color: var(--muted) !important;
+  border-color: var(--border) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Radix Select item hover/selected state */
+[data-radix-select-item][data-highlighted] {
+  background-color: var(--accent) !important;
+  color: var(--background) !important;
+}
+
+[data-radix-select-item][data-state="checked"] {
+  background-color: var(--accent) !important;
+  color: var(--background) !important;
+}
+
+/* Radix Select scroll buttons */
+[data-radix-select-scroll-up-button],
+[data-radix-select-scroll-down-button] {
+  background-color: var(--muted) !important;
+  color: var(--foreground) !important;
+}
+
+[data-radix-select-scroll-up-button]:hover,
+[data-radix-select-scroll-down-button]:hover {
+  background-color: var(--muted-foreground) !important;
 }

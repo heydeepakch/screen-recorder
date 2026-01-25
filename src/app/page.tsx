@@ -76,6 +76,7 @@ export default function Home() {
     startCompositing,
     stopCompositing,
     updateConfig,
+    updateCameraStream,
     outputStream,
     isCompositing,
     error: compositorError,
@@ -132,8 +133,9 @@ export default function Home() {
   }, [clearCaptureError, clearRecordError, clearCameraError, clearAudioError, clearCompositorError]);
 
   // Memoize expensive calculations
+  // Allow camera size up to 55% of screen height (600/1080 ≈ 0.55)
   const sizeRatio = useMemo(() => {
-    return Math.max(0.1, Math.min(0.4, cameraSize / 1080));
+    return Math.max(0.07, Math.min(0.55, cameraSize / 1080));
   }, [cameraSize]);
 
   // ============================================
@@ -172,6 +174,13 @@ export default function Home() {
       stopCompositing();
     }
   }, [recordingState, isCompositing, stopCompositing]);
+
+  // Update camera stream in compositor when camera is toggled during recording
+  useEffect(() => {
+    if (isRecordingActive && isCompositing) {
+      updateCameraStream(cameraStream);
+    }
+  }, [cameraStream, isRecordingActive, isCompositing, updateCameraStream]);
 
   // ============================================
   // HANDLERS
@@ -296,7 +305,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
 
         {/* Header */}
         <div className="mb-6 text-center">
@@ -309,51 +318,45 @@ export default function Home() {
         </div>
 
         {/* Screen Preview */}
-        <div className="mb-4 relative">
-          <ScreenPreview stream={screenStream} />
+        <div className="mb-4 relative flex items-center justify-center">
+          <div className="relative w-full max-w-4xl">
+            <ScreenPreview stream={screenStream} />
 
-          {/* Camera Overlay Preview */}
-          {isSharing && !isRecordingActive && (
-            <CameraOverlay
-              stream={cameraStream}
-              position={cameraPosition}
-              size={cameraSize}
-              borderRadius={cameraBorderRadius}
-            />
-          )}
+            {/* Camera Overlay Preview - show during preview and recording */}
+            {isSharing && isCameraOn && cameraStream && (
+              <CameraOverlay
+                stream={cameraStream}
+                position={cameraPosition}
+                size={cameraSize}
+                borderRadius={cameraBorderRadius}
+              />
+            )}
 
-          {/* Recording indicators */}
-          {isRecordingActive && isCameraOn && (
-            <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full text-white text-xs">
-              <span className="w-2 h-2 bg-green-500 rounded-full" />
-              Camera recording
-            </div>
-          )}
+            {recordingState === 'recording' && (
+              <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
+                <span className="w-3 h-3 bg-recording rounded-full animate-pulse-recording" />
+                <span className="text-white text-sm font-medium">
+                  REC {formatTime(duration)}
+                </span>
+              </div>
+            )}
 
-          {recordingState === 'recording' && (
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
-              <span className="w-3 h-3 bg-recording rounded-full animate-pulse-recording" />
-              <span className="text-white text-sm font-medium">
-                REC {formatTime(duration)}
-              </span>
-            </div>
-          )}
+            {recordingState === 'paused' && (
+              <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
+                <span className="w-3 h-3 bg-muted-foreground rounded-full" />
+                <span className="text-white text-sm font-medium">
+                  PAUSED {formatTime(duration)}
+                </span>
+              </div>
+            )}
 
-          {recordingState === 'paused' && (
-            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full">
-              <span className="w-3 h-3 bg-yellow-500 rounded-full" />
-              <span className="text-white text-sm font-medium">
-                PAUSED {formatTime(duration)}
-              </span>
-            </div>
-          )}
-
-          {/* Quality/Audio badge */}
-          {isRecordingActive && (
-            <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full text-white text-xs">
-              {fps}fps • {videoBitrate}Mbps • {getAudioStatusText()}
-            </div>
-          )}
+            {/* Quality/Audio badge */}
+            {isRecordingActive && (
+              <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/70 px-3 py-1.5 rounded-full text-white text-xs">
+                {fps}fps • {videoBitrate}Mbps • {getAudioStatusText()}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Error Message */}
@@ -421,8 +424,8 @@ export default function Home() {
                 className={`
                   flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all
                   ${isMicrophoneOn
-                    ? 'bg-accent text-white hover:bg-accent-hover'
-                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                    ? 'bg-accent text-black hover:bg-accent-hover'
+                    : 'bg-muted text-foreground hover:bg-muted/80'
                   }
                   ${isMicLoading ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
@@ -445,8 +448,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Settings Panel */}
-        {isSharing && !isRecordingActive && (
+        {/* Settings Panel - Full settings before recording, camera-only during recording */}
+        {isSharing && (
           <div className="mb-6">
             <SettingsPanel
               // Camera
@@ -467,6 +470,8 @@ export default function Home() {
               onAudioSourceChange={setAudioSource}
               isMicrophoneOn={isMicrophoneOn}
               hasSystemAudio={hasSystemAudio}
+              // Mode
+              isRecording={isRecordingActive}
             />
           </div>
         )}
@@ -478,7 +483,7 @@ export default function Home() {
             <Tooltip content="Start sharing your screen">
               <button
                 onClick={handleStartSharing}
-                className="px-6 py-3 bg-accent hover:bg-accent-hover text-white font-medium rounded-lg transition-colors"
+                className="px-6 py-3 bg-accent hover:bg-accent-hover text-black font-medium rounded-lg transition-colors"
               >
                 Share Screen
               </button>
@@ -490,9 +495,9 @@ export default function Home() {
               <Tooltip content="Start recording (Ctrl+Shift+R)">
                 <button
                   onClick={handleStartRecording}
-                  className="px-6 py-3 bg-recording hover:bg-red-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2"
+                  className="px-6 py-3 bg-recording hover:bg-muted-foreground text-black font-medium rounded-lg transition-colors flex items-center gap-2"
                 >
-                  <span className="w-3 h-3 bg-white rounded-full" />
+                  <span className="w-3 h-3 bg-black rounded-full" />
                   Start Recording
                 </button>
               </Tooltip>
@@ -512,7 +517,7 @@ export default function Home() {
               <Tooltip content="Pause recording (Space)">
                 <button
                   onClick={pauseRecording}
-                  className="px-6 py-3 bg-yellow-600 hover:bg-yellow-700 text-white font-medium rounded-lg transition-colors"
+                  className="px-6 py-3 bg-muted-foreground hover:bg-muted-foreground/80 text-white font-medium rounded-lg transition-colors"
                 >
                   Pause
                 </button>
@@ -531,7 +536,7 @@ export default function Home() {
               <Tooltip content="Resume recording (Space)">
                 <button
                   onClick={resumeRecording}
-                  className="px-6 py-3 bg-recording hover:bg-red-600 text-white font-medium rounded-lg transition-colors"
+                  className="px-6 py-3 bg-recording hover:bg-muted-foreground text-black font-medium rounded-lg transition-colors"
                 >
                   Resume
                 </button>
@@ -561,7 +566,7 @@ export default function Home() {
                 </p>
               )}
               <p className="text-xs text-muted-foreground/70">
-                💡 Press <kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Ctrl+Shift+R</kbd> to start recording
+                💡 Press <kbd className="px-1.5 py-0.5 bg-muted text-foreground rounded text-xs">Ctrl+Shift+R</kbd> to start recording
               </p>
             </>
           )}
@@ -576,10 +581,10 @@ export default function Home() {
         </div>
 
         {/* Help Section - Collapsible */}
-        {!isSharing && (
+        {/* {!isSharing && (
           <details className="mt-8 p-4 bg-card rounded-lg border border-border">
             <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              ℹ️ How to use
+              How to use
             </summary>
             <div className="mt-4 space-y-3 text-sm text-muted-foreground">
               <div>
@@ -595,9 +600,9 @@ export default function Home() {
               <div>
                 <p className="font-medium text-foreground mb-1">Keyboard Shortcuts:</p>
                 <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Ctrl+Shift+R</kbd> - Start/Stop recording</li>
-                  <li><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Space</kbd> - Pause/Resume</li>
-                  <li><kbd className="px-1.5 py-0.5 bg-muted rounded text-xs">Esc</kbd> - Stop sharing</li>
+                  <li><kbd className="px-1.5 py-0.5 bg-muted text-foreground rounded text-xs">Ctrl+Shift+R</kbd> - Start/Stop recording</li>
+                  <li><kbd className="px-1.5 py-0.5 bg-muted text-foreground rounded text-xs">Space</kbd> - Pause/Resume</li>
+                  <li><kbd className="px-1.5 py-0.5 bg-muted text-foreground rounded text-xs">Esc</kbd> - Stop sharing</li>
                 </ul>
               </div>
 
@@ -611,7 +616,7 @@ export default function Home() {
               </div>
             </div>
           </details>
-        )}
+        )} */}
       </div>
 
       {/* Preview Modal */}

@@ -148,17 +148,14 @@ export function useCanvasCompositor() {
             config
           );
           
+          // Gradual border radius from 0 (square) to 100 (circle)
+          // At 100%, borderRadius = size / 2 = perfect circle
           const borderRadiusPixels = (config.cameraBorderRadius / 100) * (size / 2);
           
           ctx.save();
           ctx.beginPath();
           
-          if (config.cameraBorderRadius >= 50) {
-            const centerX = x + size / 2;
-            const centerY = y + size / 2;
-            const radius = size / 2;
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-          } else if (config.cameraBorderRadius > 0) {
+          if (borderRadiusPixels > 0) {
             ctx.roundRect(x, y, size, size, borderRadiusPixels);
           } else {
             ctx.rect(x, y, size, size);
@@ -170,16 +167,12 @@ export function useCanvasCompositor() {
           ctx.drawImage(cameraVideo, 0, 0, size, size);
           ctx.restore();
           
+          // Draw border
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
           ctx.lineWidth = 3;
           ctx.beginPath();
           
-          if (config.cameraBorderRadius >= 50) {
-            const centerX = x + size / 2;
-            const centerY = y + size / 2;
-            const radius = size / 2 - 1.5;
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-          } else if (config.cameraBorderRadius > 0) {
+          if (borderRadiusPixels > 0) {
             ctx.roundRect(x, y, size, size, borderRadiusPixels);
           } else {
             ctx.rect(x, y, size, size);
@@ -391,6 +384,24 @@ export function useCanvasCompositor() {
     configRef.current = { ...configRef.current, ...config };
   }, []);
 
+  /**
+   * Update camera stream during recording
+   * Call this when camera is toggled on/off while recording
+   */
+  const updateCameraStream = useCallback((cameraStream: MediaStream | null) => {
+    const cameraVideo = cameraVideoRef.current;
+    if (!cameraVideo) return;
+
+    if (cameraStream && cameraStream.getVideoTracks().length > 0) {
+      cameraVideo.srcObject = cameraStream;
+      cameraVideo.play().catch((err) => {
+        console.warn('Failed to play camera video:', err);
+      });
+    } else {
+      cameraVideo.srcObject = null;
+    }
+  }, []);
+
   const stopCompositing = useCallback(() => {
     try {
       if (animationFrameRef.current) {
@@ -447,6 +458,7 @@ export function useCanvasCompositor() {
     startCompositing,
     stopCompositing,
     updateConfig,
+    updateCameraStream,
     outputStream,
     isCompositing,
     error,
