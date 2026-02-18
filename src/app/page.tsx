@@ -585,9 +585,9 @@ export default function Home() {
                   💡 Enable camera or audio to enhance your recording
                 </p>
               )} */}
-              <p className="text-xs text-muted-foreground/70">
+              {/* <p className="text-xs text-muted-foreground/70">
                 💡 Press <kbd className="px-1.5 py-0.5 bg-muted text-foreground rounded text-xs">Ctrl+Shift+R</kbd> to start recording
-              </p>
+              </p> */}
             </>
           )}
 
