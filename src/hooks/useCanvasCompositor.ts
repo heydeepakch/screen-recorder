@@ -231,6 +231,15 @@ export function useCanvasCompositor() {
         }
       }
 
+      // Enforce the requested FPS on the screen capture track.
+      // getDisplayMedia may have been called with a different (or no) frameRate,
+      // so we apply the constraint here before the pipeline starts.
+      screenTrack.applyConstraints({
+        frameRate: { ideal: configRef.current.fps, max: configRef.current.fps },
+      }).catch(() => {
+        // applyConstraints is best-effort — some browsers/OS combinations ignore it
+      });
+
       // Acquire Web Lock to suppress intensive background throttling (Chrome 88+)
       if (typeof navigator !== 'undefined' && navigator.locks?.request) {
         navigator.locks.request('screen-recorder-lock', () =>
@@ -263,9 +272,23 @@ export function useCanvasCompositor() {
           pipelineAbortRef.current = abortController;
           usingInsertableStreamsRef.current = true;
 
+          // Frame-dropping: only pass through frames that meet the target FPS.
+          // VideoFrame timestamps are in microseconds.
+          let lastEnqueuedTimestamp = -Infinity;
+
           const transformer = new TransformStream<VideoFrame, VideoFrame>({
             transform(frame, controller) {
               try {
+                const targetIntervalUs = 1_000_000 / configRef.current.fps;
+                const elapsed = frame.timestamp - lastEnqueuedTimestamp;
+
+                if (elapsed < targetIntervalUs) {
+                  // Drop this frame — source is delivering faster than target FPS
+                  return;
+                }
+
+                lastEnqueuedTimestamp = frame.timestamp;
+
                 // Draw screen frame
                 ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
                 // Composite camera overlay

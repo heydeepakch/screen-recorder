@@ -41,6 +41,7 @@ export default function Home() {
   const {
     recordingState,
     recordedBlob,
+    mimeType,
     duration,
     error: recordError,
     startRecording,
@@ -207,12 +208,11 @@ export default function Home() {
   // ============================================
 
   const handleStartSharing = useCallback(async () => {
-    // Always request audio so browser shows "Share tab audio" option
-    // User can choose to use it or not based on their audio source selection
     await startCapture({
-      withAudio: true
+      withAudio: true,
+      frameRate: fps,
     });
-  }, [startCapture]);
+  }, [startCapture, fps]);
 
   /**
    * Start recording with all streams combined
@@ -644,6 +644,7 @@ export default function Home() {
         <PreviewModal
           blob={recordedBlob}
           duration={duration}
+          mimeType={mimeType}
           onDiscard={handleDiscard}
           onDownloaded={handleDownloaded}
         />

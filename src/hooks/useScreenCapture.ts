@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 
 interface ScreenCaptureOptions {
   withAudio?: boolean;
+  frameRate?: number;
 }
 
 export function useScreenCapture() {
@@ -23,8 +24,9 @@ export function useScreenCapture() {
       }
       
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        // Request audio if specified
+        video: options.frameRate
+          ? { frameRate: { ideal: options.frameRate, max: options.frameRate } }
+          : true,
         audio: options.withAudio ? {
           echoCancellation: false,
           noiseSuppression: false,

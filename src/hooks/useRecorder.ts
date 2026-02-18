@@ -19,27 +19,31 @@ export function useRecorder() {
 
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  
   const chunksRef = useRef<Blob[]>([]);
- 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mimeTypeRef = useRef<string>('video/webm');
 
   const getSupportedMimeType = (): string => {
     const types = [
-      'video/webm;codecs=vp9,opus', 
-      'video/webm;codecs=vp8,opus',  
-      'video/webm;codecs=vp9',     
-      'video/webm;codecs=vp8',     
-      'video/webm',                 
+      // MP4 / H.264 — natively supported on Chrome (Windows & macOS), no conversion needed
+      'video/mp4;codecs=avc1,mp4a.40.2',
+      'video/mp4;codecs=avc1',
+      'video/mp4',
+      // WebM fallback for browsers that don't support MP4 recording (e.g. Firefox)
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
     ];
-    
+
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
         return type;
       }
     }
-    
-    return 'video/webm'; 
+
+    return 'video/webm';
   };
 
   
@@ -102,6 +106,7 @@ export function useRecorder() {
       
       // Get the best supported MIME type
       const mimeType = getSupportedMimeType();
+      mimeTypeRef.current = mimeType;
       
       // Check if MIME type is supported
       if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -311,14 +316,15 @@ export function useRecorder() {
   }, []);
 
   return {
-    recordingState,    
-    recordedBlob,      
-    duration,          
-    error,             
-    startRecording,    
-    pauseRecording,   
-    resumeRecording,   
-    stopRecording,     
+    recordingState,
+    recordedBlob,
+    duration,
+    error,
+    mimeType: mimeTypeRef.current,
+    startRecording,
+    pauseRecording,
+    resumeRecording,
+    stopRecording,
     discardRecording,
     clearError,
   };

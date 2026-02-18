@@ -5,17 +5,14 @@ import { formatTime } from '@/lib/formatTime';
 import { downloadBlob, generateFilename } from '@/lib/downloadBlob';
 
 interface PreviewModalProps {
-
   blob: Blob;
-
   duration: number;
-
+  mimeType?: string;
   onDiscard: () => void;
-
   onDownloaded?: () => void;
 }
 
-export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: PreviewModalProps) {
+export function PreviewModal({ blob, duration, mimeType = 'video/webm', onDiscard, onDownloaded }: PreviewModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -34,7 +31,8 @@ export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: Previe
     setIsDownloading(true);
 
 
-    const filename = generateFilename('webm');
+    const ext = mimeType.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const filename = generateFilename(ext);
 
 
     downloadBlob(blob, filename);
@@ -93,7 +91,7 @@ export function PreviewModal({ blob, duration, onDiscard, onDownloaded }: Previe
             </div>
             <div className="text-center">
               <div className="text-muted-foreground">Format</div>
-              <div className="font-medium">WebM</div>
+              <div className="font-medium">{mimeType.startsWith('video/mp4') ? 'MP4' : 'WebM'}</div>
             </div>
           </div>
         </div>
