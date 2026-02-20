@@ -10,7 +10,7 @@ A browser-based screen recorder built with Next.js. Record your screen with opti
 - System audio capture (when sharing browser tabs)
 - Pause and resume recording
 - Preview before download
-- WebM output format
+- MP4 output format
 
 ## Requirements
 
